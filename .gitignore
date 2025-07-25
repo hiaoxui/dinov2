@@ -1,3 +1,6 @@
+logs/
+training_metrics.json
+
 build/
 dist/
 *.egg-info/

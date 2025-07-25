@@ -1,0 +1,7 @@
+# python 3.10
+torch>=2.1
+torchvision
+xformers
+numpy==1.26.4
+omegaconf
+fvcore

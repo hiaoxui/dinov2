@@ -1,0 +1,10 @@
+# this corresponds to the default config
+student:
+  arch: vit_small
+  patch_size: 16
+  drop_path_rate: 0.4
+  ffn_layer: swiglufused
+  block_chunks: 4
+train:
+  dataset_path: ImageNet:split=TRAIN:root=/datadisk/scratch/imagenet/ILSVRC/Data/CLS-LOC:extra=/datadisk/scratch/imagenet/ILSVRC/extra
+  batch_size_per_gpu: 32
