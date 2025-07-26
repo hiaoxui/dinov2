@@ -1,5 +1,7 @@
 logs/
+wandb/
 training_metrics.json
+config.yaml
 
 build/
 dist/

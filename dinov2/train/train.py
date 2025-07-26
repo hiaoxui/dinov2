@@ -3,6 +3,7 @@
 # This source code is licensed under the Apache License, Version 2.0
 # found in the LICENSE file in the root directory of this source tree.
 
+import time
 import argparse
 import logging
 import math
@@ -16,7 +17,7 @@ from dinov2.data import SamplerType, make_data_loader, make_dataset
 from dinov2.data import collate_data_and_cast, DataAugmentationDINO, MaskingGenerator
 import dinov2.distributed as distributed
 from dinov2.fsdp import FSDPCheckpointer
-from dinov2.logging import MetricLogger
+from dinov2.logging import WandbMetric
 from dinov2.utils.config import setup
 from dinov2.utils.utils import CosineScheduler
 
@@ -214,18 +215,11 @@ def do_train(cfg, model, resume=False):
 
     iteration = start_iter
 
-    logger.info("Starting training from iteration {}".format(start_iter))
-    metrics_file = os.path.join(cfg.train.output_dir, "training_metrics.json")
-    metric_logger = MetricLogger(delimiter="  ", output_file=metrics_file)
-    header = "Training"
+    since = time.monotonic()
+    logger.warning("Starting training from iteration {}".format(start_iter))
+    metric_logger = WandbMetric(config=cfg, total_iterations=max_iter)
 
-    for data in metric_logger.log_every(
-        data_loader,
-        10,
-        header,
-        max_iter,
-        start_iter,
-    ):
+    for data in data_loader:
         current_batch_size = data["collated_global_crops"].shape[0] / 2
         if iteration > max_iter:
             return
@@ -275,12 +269,14 @@ def do_train(cfg, model, resume=False):
             raise AssertionError
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
-        metric_logger.update(lr=lr)
-        metric_logger.update(wd=wd)
-        metric_logger.update(mom=mom)
-        metric_logger.update(last_layer_lr=last_layer_lr)
-        metric_logger.update(current_batch_size=current_batch_size)
-        metric_logger.update(total_loss=losses_reduced, **loss_dict_reduced)
+        step_metrics = {
+            'loss/total': losses_reduced,
+            'train/batch_size': current_batch_size,
+            'schedule/lr': lr, 'schedule/wd': wd, 'schedule/mom': mom, 'schedule/last_layer_lr': last_layer_lr,
+        }
+        for k, v in loss_dict_reduced.items():
+            step_metrics[f"loss/{k}"] = v
+        metric_logger.log(step=iteration, metrics=step_metrics)
 
         # checkpointing and testing
 
@@ -290,8 +286,8 @@ def do_train(cfg, model, resume=False):
         periodic_checkpointer.step(iteration)
 
         iteration = iteration + 1
-    metric_logger.synchronize_between_processes()
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    metric_logger.finish()
+    logger.warning(f"Training finished. Time cost: {time.monotonic() - since:.2f} seconds")
 
 
 def main(args):

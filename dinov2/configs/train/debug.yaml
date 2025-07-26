@@ -6,5 +6,7 @@ student:
   ffn_layer: swiglufused
   block_chunks: 4
 train:
+  project: dinov2
+  name: debug
   dataset_path: ImageNet:split=TRAIN:root=/datadisk/scratch/imagenet/ILSVRC/Data/CLS-LOC:extra=/datadisk/scratch/imagenet/ILSVRC/extra
   batch_size_per_gpu: 32
